@@ -1,6 +1,12 @@
 <?php
 //print_r($_COOKIE); 
-echo'<head><link rel="stylesheet" href="header.css"></head>';
+echo'<head>';
+echo'<link rel="stylesheet" href="header.css">';
+
+
+
+
+echo'</head>';
 function checkpw($str){ 
 		return 
 		preg_match('/[a-z]/', $str)
