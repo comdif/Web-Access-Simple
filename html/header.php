@@ -2,10 +2,41 @@
 //print_r($_COOKIE); 
 echo'<head>';
 echo'<link rel="stylesheet" href="header.css">';
-
-
-
-
+?><script>
+function eyeon()
+	{
+	var x = document.getElementById("mypwrd");
+	if (x.type === "password")
+		{ x.type = "text"; }
+	else
+		{ x.type = "password"; }
+	}
+function eyeout()
+	{
+	var x = document.getElementById("mypwrd");
+	if (x.type === "text")
+		{ x.type = "password"; }
+	else
+		{ x.type = "text"; }
+	}
+function eyeon2()
+	{
+	var x = document.getElementById("mypwrd2");
+	if (x.type === "password")
+		{ x.type = "text"; }
+	else
+		{ x.type = "password"; }
+	}
+function eyeout2()
+	{
+	var x = document.getElementById("mypwrd2");
+	if (x.type === "text")
+		{ x.type = "password"; }
+	else
+		{ x.type = "text"; }
+	}
+</script>
+<?php
 echo'</head>';
 function checkpw($str){ 
 		return 
