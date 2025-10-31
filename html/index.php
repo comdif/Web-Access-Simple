@@ -1,85 +1,112 @@
-<head>
-<link rel="stylesheet" href="login.css">
-<script>
-function eyeon()
-	{
-	var x = document.getElementById("mypwrd");
-	if (x.type === "password")
-		{ x.type = "text"; }
-	else
-		{ x.type = "password"; }
-	}
-function eyeout()
-	{
-	var x = document.getElementById("mypwrd");
-	if (x.type === "text")
-		{ x.type = "password"; }
-	else
-		{ x.type = "text"; }
-	}
-</script>
-</head>
-
 <?php
-////////////////OPEN THE DATABASE FILE
+//Web Access Simple
+ob_start();
+
+// Secure headers
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
+
+// Database connection
 $base = '../dbdir/mybase.sqlite';
 $con = new SQLite3($base);
-if(!$con)
-	{
-	echo $db->lastErrorMsg();
-	exit(0);
-	}
+if (!$con) {
+    echo htmlspecialchars($con->lastErrorMsg());
+    exit(0);
+}
 
-	////////////////HERE IS THE CONTENT
+// Redirect if already logged in
+if (isset($_COOKIE['admin']) && isset($_COOKIE['user'])) {
+    header("Location: content.php");
+    exit;
+}
 
-	//CHECK IF ALREDY LOGGED
-	if(isset($_COOKIE['admin']) && isset($_COOKIE['user']))
-		{
-		header("Location: content.php");
-		}
+// Process login form submission
+$loginError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['login']) && !empty($_POST['password'])) {
+    $login = trim($_POST['login']);
+    $password = $_POST['password'];
+    $passwordHash = hash("sha256", $password);
 
-	////FORM////
-	echo'<div align="center" class="login">
-		<p>PLEASE LOGIN TO ACCESS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
-		<form id="login" name="login" method="post" action="'.htmlspecialchars($_SERVER["PHP_SELF"]).'">
-		<table border="0"><tr>
-		<td><label><br />Username: </label><input type="text" name="login" value=""/></td>
-		<td></td></tr>
-		<td style="position: relative;">
-		<label> Password: </label><input name="password" type="password" id="mypwrd" value="" />
-		<div class="card" onmouseover="eyeon()" onmouseout="eyeout()" style="position: absolute; top: 1.01em; left: 13.95em;"></div>
-		</td></tr><tr>
-		<td><label>&nbsp;</label><input type="submit" name="Submit" value="Submit" /></td>
-		<td></td></tr>
-		</table>
-		</form></div>';
+    // Use prepared statements to prevent SQL injection
+    $stmt = $con->prepare('SELECT * FROM "user" WHERE "username" = :username');
+    $stmt->bindValue(':username', $login, SQLITE3_TEXT);
+    $results = $stmt->execute();
 
-	////FORM SENT MAKE ACTION////
-	if(!empty($_POST['password']) && !empty($_POST['login']))
-		{
-		$password = hash("sha256", $_POST['password']);
-		$login = $_POST['login'];
-		//CHECK IF USER/PWRD IS VALID
-//-------------------To replace with litesql3 query-------------------// // controler dans la database que $password corresponde bien au user $login//
+    $user = $results->fetchArray(SQLITE3_ASSOC);
+    if ($user && $user['password'] === $passwordHash) {
+        // Set cookies securely
+        $expire = time() + 3600; // 1 hour
+        $cookieParams = [
+            'expires' => $expire,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ];
+        // Use 'secure' flag if running over HTTPS
+        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+            $cookieParams['secure'] = true;
+        }
+        setcookie('admin', 'true', $cookieParams);
+        setcookie('user', $login, $cookieParams);
+        setcookie('level', $user['level'], $cookieParams);
 
-		$query = 'SELECT * FROM "user" WHERE "username" like \''.$login.'\'';
-		$results = $con->query($query);
-		while($row = $results->fetchArray(SQLITE3_ASSOC))
-			{
-			$level = $row['level'];
-			$crptpass= $row['password'];
-			}
-
-		if(isset($crptpass) && !empty($crptpass) && $password == $crptpass)
-			{
-			echo $login." Is connected with level:".$level;
-			////VERIFICATION IS OK SET COOKIES////
-			setcookie('admin', 'true'); setcookie('user', $login); setcookie('level', $level); header("Location: content.php");
-			}
-		else
-			{
-			////VERIFICATION IS NOK DO NOTHING////
-			echo "<br/><center><strong>Please check your login or password !</strong></center>";
-			}
-		}
+        header("Location: content.php");
+        exit;
+    } else {
+        $loginError = "Please check your login or password!";
+    }
+}
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Web Access Simple</title>
+    <link rel="stylesheet" href="login.css">
+    <script>
+        function eyeon() {
+            var x = document.getElementById("mypwrd");
+            if (x.type === "password") {
+                x.type = "text";
+            }
+        }
+        function eyeout() {
+            var x = document.getElementById("mypwrd");
+            if (x.type === "text") {
+                x.type = "password";
+            }
+        }
+    </script>
+</head>
+<body>
+<div align="center" class="login">
+    <p>PLEASE LOGIN TO ACCESS</p>
+    <?php if (!empty($loginError)): ?>
+        <div style="color:red; font-weight:bold;"><?= htmlspecialchars($loginError) ?></div>
+    <?php endif; ?>
+    <form id="login" name="login" method="post" action="<?= htmlspecialchars($_SERVER["PHP_SELF"]) ?>">
+        <table border="0">
+            <tr>
+                <td>
+                    <label for="login_user">Username: </label>
+                    <input type="text" id="login_user" name="login" value="" autocomplete="username" required />
+                </td>
+            </tr>
+            <tr>
+                <td style="position: relative;">
+                    <label for="mypwrd">Password: </label>
+                    <input name="password" type="password" id="mypwrd" value="" autocomplete="current-password" required />
+                    <div class="card" onmouseover="eyeon()" onmouseout="eyeout()" style="position: absolute; top: 1.01em; left: 13.95em; cursor:pointer;"></div>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="submit" name="Submit" value="Submit" />
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+</body>
+</html>
